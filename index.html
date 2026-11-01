@@ -467,9 +467,9 @@ function tvaRule(ch, cfg) {
     return { rate: r, mode: 'manuel', label: 'TVA ' + fmtQ(r) + ' %', mention: r === 0 ? (cfg.franchise ? MENTION_FRANCHISE : MENTION_AUTOLIQ) : '',
       why: 'Taux choisi à la main.' };
   }
-  if (cfg.franchise) return { rate: 0, mode: 'franchise', label: 'TVA non applicable', mention: MENTION_FRANCHISE,
+  if (cfg.franchise) return { rate: 0, mode: 'franchise', label: 'TVA non applicable (art. 293 B du CGI)', mention: MENTION_FRANCHISE,
     why: 'Ton entreprise est en franchise de TVA (micro-entreprise sous le seuil) : tu ne factures pas de TVA. La mention « TVA non applicable, article 293 B du CGI » est obligatoire et ajoutée au devis.' };
-  if (ch.typeClient === 'btp') return { rate: 0, mode: 'autoliq', label: 'TVA autoliquidée', mention: MENTION_AUTOLIQ,
+  if (ch.typeClient === 'btp') return { rate: 0, mode: 'autoliq', label: 'TVA ' + fmtQ(normal) + ' % payée par le client (autoliquidation)', infoRate: normal, mention: MENTION_AUTOLIQ,
     why: 'Tu nettoies en sous-traitance pour une entreprise du bâtiment : c’est elle qui déclare et paie la TVA (autoliquidation). Ton devis est donc sans TVA, avec la mention obligatoire ajoutée automatiquement.' };
   if (ch.typeClient === 'particulier' && ch.renovLogement) return { rate: 10, mode: 'reduit', label: 'TVA 10 %', mention: '',
     why: 'Particulier, logement de plus de 2 ans, nettoyage compris dans des travaux de rénovation : taux réduit de 10 %. Fais confirmer par ton comptable que ta prestation y a droit.' };
@@ -935,7 +935,8 @@ function devisPdf(ch, comp, sched, cfg, logo) {
   };
   if (comp.remise > 0) { tot('Sous-total HT', eur(comp.subtotal)); tot('Remise ' + fmtQ(comp.remisePct) + ' %', '- ' + eur(comp.remise)); }
   tot('Total HT', eur(comp.ht), true);
-  tot(comp.rule.label, comp.rule.mention && comp.tvaRate === 0 ? '-' : eur(comp.tva));
+  tot(comp.rule.label, eur(comp.tva));
+  if (comp.rule.mode === 'autoliq') tot('Pour information : TVA déclarée par le client', eur(round2(comp.ht * comp.rule.infoRate / 100)));
   doc.setFillColor(...C.acc); doc.roundedRect(tx1 - 4, y - 3.5, W - M - (tx1 - 4), 10.5, 1.5, 1.5, 'F');
   doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5);
   doc.text(T(comp.ttcLabel), tx1, y + 3.4); doc.text(T(eur(comp.ttc)), tx2, y + 3.4, { align: 'right' });
@@ -1117,7 +1118,7 @@ function facturePdf(f, ch, cfg, logo) {
     if (f.deductionAcompte > 0) tot('Déduction de l’acompte', '- ' + eur(f.deductionAcompte));
   }
   tot('Net HT', eur(f.netHT), true);
-  tot(f.tvaLabel, f.mention && f.tvaRate === 0 ? '-' : eur(f.tva));
+  tot(f.tvaLabel, eur(f.tva));
   doc.setFillColor(...C.acc); doc.roundedRect(tx1 - 4, y - 3.5, W - M - (tx1 - 4), 10.5, 1.5, 1.5, 'F');
   doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5);
   doc.text(T(f.ttcLabel), tx1, y + 3.4); doc.text(T(eur(f.ttc)), tx2, y + 3.4, { align: 'right' });
@@ -2721,7 +2722,8 @@ function DevisPanel({ ch, comp, sched, cfg, onPdf, busy, goTab, canDownload }) {
         <div className="t"><span>Remise ${fmtQ(comp.remisePct)} %</span><span>- ${eur(comp.remise)}</span></div>
       <//>` : null}
       <div className="t strong"><span>Total HT</span><span>${eur(comp.ht)}</span></div>
-      <div className="t"><span>${comp.rule.label}</span><span>${comp.rule.mention && comp.tvaRate === 0 ? '–' : eur(comp.tva)}</span></div>
+      <div className="t"><span>${comp.rule.label}</span><span>${eur(comp.tva)}</span></div>
+      ${comp.rule.mode === 'autoliq' ? html`<div className="t"><span>Pour information : TVA déclarée par le client</span><span>${eur(round2(comp.ht * comp.rule.infoRate / 100))}</span></div>` : null}
       <div className="ttc"><span>${comp.ttcLabel}</span><span className="v">${eur(comp.ttc)}</span></div>
       <p className="tiny muted" style=${{ marginTop: '4px' }}>${tvaText(comp.rule, comp.ht, cfg)}</p>
     </div>
