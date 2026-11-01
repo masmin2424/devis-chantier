@@ -1,5 +1,5 @@
 /* Devis Chantier : fonctionne hors connexion après la première ouverture. */
-const CACHE = 'devis-chantier-v1';
+const CACHE = 'devis-chantier-v' + '2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png'];
 const CDN = [
   "https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js",

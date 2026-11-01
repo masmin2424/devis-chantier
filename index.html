@@ -221,6 +221,30 @@ textarea.inp.brief{min-height:130px}
 .result{border:1px solid var(--ok);background:var(--ok-soft);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .result.partial{border-color:var(--warn);background:var(--warn-soft)}
 .ed-main{display:flex;flex-direction:column;gap:14px;min-width:0}
+.exec.on{background:color-mix(in srgb,var(--ok) 5%,var(--surface))}
+.exec-h{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:0;text-align:left}
+.exec-h .sec-h{flex:1}
+.exec .subh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-top:8px}
+.exec .subh .aside{font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:500}
+.units{display:flex;flex-direction:column;gap:10px}
+.unit{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:9px;background:var(--surface)}
+.unit-h{display:flex;flex-direction:column;gap:2px}
+.chip.busy{border-style:dashed;color:var(--muted)}
+.chip.busy .cnt{color:var(--bad)}
+.inp.np{flex:1;min-width:170px;min-height:36px;padding:6px 10px}
+.ok-t{color:var(--ok);font-weight:600}
+.av-list{display:flex;flex-direction:column;gap:6px}
+.av{display:grid;grid-template-columns:minmax(0,1fr) minmax(250px,320px);gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.av-l{display:flex;flex-direction:column;gap:2px;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.seg.av-seg{grid-template-columns:repeat(5,minmax(0,1fr))}
+.seg.av-seg button{font-size:12.5px;padding:7px 2px}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+@media (max-width:620px){.av{grid-template-columns:minmax(0,1fr)}}
+.fact-list{display:flex;flex-direction:column;gap:8px}
+.fact{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.fact-l{display:flex;flex-direction:column;gap:1px;min-width:0}
+.fact-l .num{font-size:12.5px;color:var(--muted)}
+.fact-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .assist{background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;overflow:hidden}
 .assist-h{width:100%;display:flex;align-items:center;gap:10px;background:var(--accent-soft);border:0;padding:12px 16px;text-align:left}
 .assist-t{font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:17px;flex:1}
@@ -421,7 +445,7 @@ const DEFAULT_CFG = {
   franchise: false, assurance: '', cadencesOk: false,
   tauxTVA: '20', validite: '30', heuresParJour: '7', samedi: false, tauxDefaut: '38',
   tauxPostes: { chef: '45', agent: '36', vitres: '40', interim: '32' },
-  delaiDefaut: '5', ratioChef: '6',
+  delaiDefaut: '5', ratioChef: '6', acomptePct: '30', delaiPaiement: '30',
   cadences: { leger: '40', normal: '25', important: '15' },
   coefs: { vitres: '15', traces: '25', cuisine: '10', hepa: '10', dechets: '5', communs: '10' },
   conditions: "Prix établis sur la base des informations et photos transmises. L'accès au chantier, l'eau et l'électricité sont mis à disposition par le client. Toute prestation non prévue fera l'objet d'un avenant. Acompte de 30 % à la commande, solde à la fin de l'intervention, payable à 30 jours. Clients professionnels : en cas de retard de paiement, pénalités égales à trois fois le taux d'intérêt légal et indemnité forfaitaire de 40 € pour frais de recouvrement."
@@ -577,15 +601,15 @@ function compute(ch, cfg, employes, materiel) {
 
   const lines = [];
   if (hours > 0 && zoneRows.length) {
-    org.forEach(o => lines.push({ cat: 'zone', label: o.nom + ' · ' + fmtNum(o.surface, 0) + ' m²' + (o.periode ? ' · ' + o.periode : ''), qte: 1, unite: 'forfait', pu: o.cost,
+    org.forEach(o => lines.push({ cat: 'zone', key: 'z:' + o.k, label: o.nom + ' · ' + fmtNum(o.surface, 0) + ' m²' + (o.periode ? ' · ' + o.periode : ''), qte: 1, unite: 'forfait', pu: o.cost,
       note: fmtH(o.h) + ' de travail · ' + o.people + (o.people > 1 ? ' personnes' : ' personne') + ' · ' + o.days + (o.days > 1 ? ' jours' : ' jour') }));
   } else if (hours > 0) {
     if (besoins.length) {
-      besoins.forEach(b => lines.push({ cat: 'mo', label: "Main-d'œuvre – " + ROLE_BY_ID[b.role].label + (b.nb > 1 ? ' × ' + b.nb : ''), qte: round2(perEmp * b.nb), unite: 'h', pu: num(cfg.tauxPostes[b.role]) || num(cfg.tauxDefaut) }));
+      besoins.forEach(b => lines.push({ cat: 'mo', key: 'mo:' + b.role, label: "Main-d'œuvre – " + ROLE_BY_ID[b.role].label + (b.nb > 1 ? ' × ' + b.nb : ''), qte: round2(perEmp * b.nb), unite: 'h', pu: num(cfg.tauxPostes[b.role]) || num(cfg.tauxDefaut) }));
     } else if (team.length) {
-      team.forEach(e => lines.push({ cat: 'mo', label: "Main-d'œuvre – " + (e.nom || 'Agent') + (e.poste ? ' (' + e.poste + ')' : ''), qte: round2(perEmp), unite: 'h', pu: num(e.taux) || num(cfg.tauxDefaut) }));
+      team.forEach(e => lines.push({ cat: 'mo', key: 'mo:' + e.id, label: "Main-d'œuvre – " + (e.nom || 'Agent') + (e.poste ? ' (' + e.poste + ')' : ''), qte: round2(perEmp), unite: 'h', pu: num(e.taux) || num(cfg.tauxDefaut) }));
     } else {
-      lines.push({ cat: 'mo', label: "Main-d'œuvre", qte: hours, unite: 'h', pu: num(cfg.tauxDefaut) });
+      lines.push({ cat: 'mo', key: 'mo', label: "Main-d'œuvre", qte: hours, unite: 'h', pu: num(cfg.tauxDefaut) });
     }
   }
   const dayCount = org.length && !zoneRows.length ? days : days;
@@ -594,16 +618,16 @@ function compute(ch, cfg, employes, materiel) {
     const q = num(row.qte); if (q <= 0) return;
     if (m.unite === 'jour') {
       if (dayCount <= 0) return;
-      lines.push({ cat: 'mat', label: (m.nom || 'Matériel') + ' – ' + fmtQ(q) + ' × ' + dayCount + ' j', qte: q * dayCount, unite: 'jour', pu: num(m.prix) });
+      lines.push({ cat: 'mat', key: 'm:' + row.id, label: (m.nom || 'Matériel') + ' – ' + fmtQ(q) + ' × ' + dayCount + ' j', qte: q * dayCount, unite: 'jour', pu: num(m.prix) });
     } else {
-      lines.push({ cat: 'mat', label: m.nom || 'Matériel', qte: q, unite: UNIT_SHORT[m.unite] || 'pce', pu: num(m.prix) });
+      lines.push({ cat: 'mat', key: 'm:' + row.id, label: m.nom || 'Matériel', qte: q, unite: UNIT_SHORT[m.unite] || 'pce', pu: num(m.prix) });
     }
   });
-  (ch.extras || []).forEach(x => {
+  (ch.extras || []).forEach((x, xi) => {
     if (!String(x.label || '').trim()) return;
-    lines.push({ cat: 'extra', label: x.label.trim(), qte: num(x.qte) || 1, unite: x.unite || 'forfait', pu: num(x.pu), inclus: !(num(x.pu) > 0) });
+    lines.push({ cat: 'extra', key: 'x:' + (x.k || xi), label: x.label.trim(), qte: num(x.qte) || 1, unite: x.unite || 'forfait', pu: num(x.pu), inclus: !(num(x.pu) > 0) });
   });
-  if (num(ch.deplacement) > 0) lines.push({ cat: 'dep', label: 'Déplacement et installation de chantier', qte: 1, unite: 'forfait', pu: num(ch.deplacement) });
+  if (num(ch.deplacement) > 0) lines.push({ cat: 'dep', key: 'dep', label: 'Déplacement et installation de chantier', qte: 1, unite: 'forfait', pu: num(ch.deplacement) });
   lines.forEach(l => { l.total = round2(l.qte * l.pu); });
   const subtotal = round2(lines.reduce((s, l) => s + l.total, 0));
   const remisePct = Math.min(100, Math.max(0, num(ch.remise)));
@@ -635,7 +659,7 @@ function schedule(ch, comp, cfg) {
       if (isWorkday(d, cfg.samedi)) {
         const h = Math.min(comp.hpd, rem); rem -= h; last = d;
         const k = iso(d), cur = byDate.get(k) || { date: k, h: 0, people: 0, items: [] };
-        cur.h = Math.max(cur.h, Math.round(h * 100) / 100); cur.people += o.people; cur.items.push({ nom: o.nom, people: o.people, h: Math.round(h * 100) / 100 });
+        cur.h = Math.max(cur.h, Math.round(h * 100) / 100); cur.people += o.people; cur.items.push({ k: o.k, nom: o.nom, people: o.people, h: Math.round(h * 100) / 100 });
         byDate.set(k, cur);
       }
       d = addDays(d, 1);
@@ -652,12 +676,85 @@ function buildBookings(chantiers, cfg, employes, materiel) {
     if (ch.statut === 'refuse' || !ch.dateDebut) return;
     const comp = compute(ch, cfg, employes, materiel);
     const sched = schedule(ch, comp, cfg);
-    sched.forEach(s => {
-      if (comp.team.length && comp.modeEquipe === 'manuel') comp.team.forEach(e => { ((byEmp[e.id] = byEmp[e.id] || {})[s.date] = byEmp[e.id][s.date] || []).push({ ch, h: s.h }); });
-      else (sansEquipe[s.date] = sansEquipe[s.date] || []).push({ ch, h: s.h, people: s.people });
-    });
+    sched.forEach(s => s.items.forEach(it => {
+      const ids = assignedTo(ch, it.k).filter(id => employes[id]);
+      ids.forEach(id => { ((byEmp[id] = byEmp[id] || {})[s.date] = byEmp[id][s.date] || []).push({ ch, h: it.h, k: it.k, nom: it.nom }); });
+      const reste = Math.max(0, it.people - ids.length);
+      if (reste) (sansEquipe[s.date] = sansEquipe[s.date] || []).push({ ch, h: it.h, people: reste, k: it.k });
+    }));
   });
   return { byEmp, sansEquipe };
+}
+/* Personnes nommées sur une phase (ou, pour les anciens devis, l'équipe du chantier) */
+function assignedTo(ch, k) {
+  const t = ch.travaux && ch.travaux[k];
+  if (t && Array.isArray(t.equipe)) return t.equipe;
+  return ch.modeEquipe === 'manuel' || (!ch.modeEquipe && (ch.equipe || []).length) ? (ch.equipe || []) : [];
+}
+
+/* ---------- TVA expliquée ---------- */
+function tvaText(rule, base, cfg) {
+  const normal = num(cfg.tauxTVA) || 20;
+  if (rule.mode === 'normal') return 'TVA française au taux normal de ' + fmtQ(rule.rate) + ' % (article 278 du CGI), calculée sur le montant hors taxes de ' + eur(base) + ', soit ' + eur(round2(base * rule.rate / 100)) + '.';
+  if (rule.mode === 'reduit') return 'TVA au taux intermédiaire de 10 % (article 279-0 bis du CGI) : travaux dans un logement à usage d’habitation achevé depuis plus de 2 ans. En signant, le client confirme que ces conditions sont remplies.';
+  if (rule.mode === 'autoliq') return 'Autoliquidation (article 283-2 nonies du CGI) : prestation réalisée en sous-traitance pour une entreprise du bâtiment. Le montant est facturé hors taxes ; la TVA est déclarée et payée par le donneur d’ordre. Pour information, au taux de ' + fmtQ(normal) + ' %, elle représente ' + eur(round2(base * normal / 100)) + '.';
+  if (rule.mode === 'franchise') return 'TVA non applicable, article 293 B du CGI : notre entreprise bénéficie de la franchise en base de TVA. Le montant à payer est le montant hors taxes.';
+  return 'TVA appliquée au taux de ' + fmtQ(rule.rate) + ' %' + (rule.mention ? '. ' + rule.mention : '.');
+}
+
+/* ---------- Facturation : acompte et situations de travaux ---------- */
+function billing(ch, comp) {
+  const rem = 1 - comp.remisePct / 100;
+  const factures = ch.factures || [];
+  const done = {};
+  let acompteHT = 0, acompteDeduit = 0, travauxFactures = 0;
+  factures.forEach(f => {
+    if (f.type === 'acompte') acompteHT += f.netHT;
+    else { (f.lignes || []).forEach(x => { done[x.key] = Math.max(done[x.key] || 0, x.pctCumul); }); acompteDeduit += f.deductionAcompte || 0; travauxFactures += f.ht || 0; }
+  });
+  const av = ch.avancement || {};
+  const rows = comp.lines.filter(l => !l.inclus && l.total > 0).map(l => {
+    const montant = round2(l.total * rem);
+    const pct = Math.min(100, Math.max(0, num(av[l.key])));
+    const deja = done[l.key] || 0;
+    return { key: l.key, label: l.label, cat: l.cat, montant, pct, deja, aFacturer: pct > deja ? round2(montant * (pct - deja) / 100) : 0 };
+  });
+  const allDone = rows.length > 0 && rows.every(r => r.pct >= 100);
+  let situationHT = round2(rows.reduce((s, r) => s + r.aFacturer, 0));
+  if (allDone && situationHT > 0) situationHT = round2(comp.ht - travauxFactures);
+  const resteAcompte = round2(acompteHT - acompteDeduit);
+  let deduction = comp.ht > 0 ? round2(acompteHT * situationHT / comp.ht) : 0;
+  if (allDone) deduction = resteAcompte;
+  deduction = Math.max(0, Math.min(deduction, resteAcompte, situationHT));
+  return {
+    rows, allDone, situationHT, deduction, netHT: round2(situationHT - deduction),
+    acompteHT: round2(acompteHT), resteAcompte, travauxFactures: round2(travauxFactures),
+    realiseHT: round2(rows.reduce((s, r) => s + r.montant * r.pct / 100, 0)), hasAcompte: factures.some(f => f.type === 'acompte')
+  };
+}
+function nextFactureNumero(chantiers) {
+  const y = new Date().getFullYear(); const re = new RegExp('^F-' + y + '-(\\d+)$'); let max = 0;
+  Object.values(chantiers).forEach(c => (c.factures || []).forEach(f => { const m = re.exec(f.numero || ''); if (m) max = Math.max(max, +m[1]); }));
+  return 'F-' + y + '-' + String(max + 1).padStart(3, '0');
+}
+function makeFacture(type, ch, comp, cfg, numero) {
+  const today = iso(new Date());
+  const delai = Math.round(num(cfg.delaiPaiement)) || 30;
+  let f;
+  if (type === 'acompte') {
+    const pct = num(cfg.acomptePct) || 30;
+    const netHT = round2(comp.ht * pct / 100);
+    f = { type, pct, ht: netHT, deductionAcompte: 0, netHT, lignes: [] };
+  } else {
+    const b = billing(ch, comp);
+    f = { type: 'situation', situation: (ch.factures || []).filter(x => x.type === 'situation').length + 1, ht: b.situationHT, deductionAcompte: b.deduction, netHT: b.netHT,
+      realiseHT: b.realiseHT, dejaFactureHT: b.travauxFactures, solde: b.allDone,
+      lignes: b.rows.filter(r => r.pct > 0).map(r => ({ key: r.key, label: r.label, montant: r.montant, pctCumul: r.pct, deja: r.deja, aFacturer: r.aFacturer })) };
+  }
+  const tva = round2(f.netHT * comp.rule.rate / 100);
+  return Object.assign(f, { id: rid(), numero, date: today, echeance: iso(addDays(parseIso(today), delai)), devis: ch.numero, totalDevisHT: comp.ht,
+    tvaRate: comp.rule.rate, tvaMode: comp.rule.mode, tvaLabel: comp.rule.label, mention: comp.rule.mention, tvaInfo: tvaText(comp.rule, f.netHT, cfg),
+    tva, ttc: round2(f.netHT + tva), ttcLabel: comp.rule.rate === 0 && comp.rule.mention ? 'Net à payer' : 'Total TTC à payer', paye: false });
 }
 
 /* ---------- PDF ---------- */
@@ -710,7 +807,7 @@ function devisPdf(ch, comp, sched, cfg, logo) {
     return out;
   };
   const cl = ch.client || {};
-  const L1 = boxLines([{ t: cl.nom || 'Client', b: true }, { t: cl.adresse }, { t: cl.tel }, { t: cl.email }]);
+  const L1 = boxLines([{ t: cl.nom || 'Client', b: true }, { t: cl.adresse }, { t: cl.siren ? 'SIREN / SIRET : ' + cl.siren : '' }, { t: cl.tel }, { t: cl.email }]);
   const sal = labelOf(SALISSURES, ch.salissure);
   const nDays = sched.length || comp.days;
   const dur = nDays ? nDays + (nDays > 1 ? ' jours ouvrés' : ' jour ouvré') + ' (' + fmtH(comp.hours) + ' de travail)' : '';
@@ -843,9 +940,18 @@ function devisPdf(ch, comp, sched, cfg, logo) {
   doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5);
   doc.text(T(comp.ttcLabel), tx1, y + 3.4); doc.text(T(eur(comp.ttc)), tx2, y + 3.4, { align: 'right' });
   y += 13;
-  if (comp.rule.mention) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...C.ink);
-    doc.text(T(comp.rule.mention), M, y); y += 7;
+  // TVA : quel taux, pourquoi, et combien
+  {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3);
+    const tl = doc.splitTextToSize(T(tvaText(comp.rule, comp.ht, cfg)), CW - 8);
+    const mh = comp.rule.mention ? 4.4 : 0;
+    const bhT = 8 + tl.length * 3.7 + mh + 2;
+    ensure(bhT + 4);
+    doc.setFillColor(...C.soft); doc.roundedRect(M, y, CW, bhT, 1.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...C.mut); doc.text('TVA', M + 4, y + 5, { charSpace: 0.4 });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3); doc.setTextColor(...C.ink); doc.text(tl, M + 4, y + 9.5);
+    if (comp.rule.mention) { doc.setFont('helvetica', 'bold'); doc.text(T(comp.rule.mention), M + 4, y + 9.5 + tl.length * 3.7 + 0.8); }
+    y += bhT + 6;
   }
 
   // Conditions
@@ -916,6 +1022,154 @@ function devisPdf(ch, comp, sched, cfg, logo) {
     doc.text(T([cfg.nom, cfg.siret ? 'SIRET ' + cfg.siret : '', cfg.tva ? 'TVA ' + cfg.tva : '', cfg.iban ? 'IBAN ' + cfg.iban : ''].filter(Boolean).join(' · ')), M, H - 9.5);
     doc.text(T((ch.numero || '') + ' · page ' + i + '/' + pages), W - M, H - 9.5, { align: 'right' });
   }
+  return doc;
+}
+
+/* En-tête commun (facture, planning d'équipe) */
+function pdfHead(doc, cfg, logo, title, rightLines) {
+  const W = 210, M = 16, C = PDF_C;
+  let y = M, tx = M;
+  if (logo) { const h = 16, w = Math.min(38, h * (logo.ratio || 1)); try { doc.addImage(logo.dataUrl, logo.fmt, M, y, w, h); tx = M + w + 5; } catch (e) { tx = M; } }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...C.ink);
+  doc.text(T(cfg.nom || 'Votre entreprise'), tx, y + 5);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...C.mut);
+  const co = [cfg.forme, cfg.adresse, [cfg.cpVille, cfg.cpVille ? cfg.pays : ''].filter(Boolean).join(', '), [cfg.tel, cfg.email].filter(Boolean).join(' · '),
+    [cfg.siret ? 'SIRET ' + cfg.siret : '', cfg.tva ? 'TVA intracom. ' + cfg.tva : ''].filter(Boolean).join(' · ')].filter(Boolean);
+  co.forEach((l, i) => doc.text(T(l), tx, y + 10.5 + i * 4));
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(title.length > 12 ? 17 : 22); doc.setTextColor(...C.acc);
+  doc.text(T(title), W - M, y + 7, { align: 'right' });
+  rightLines.forEach((l, i) => {
+    doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setFontSize(i === 0 ? 10 : 8.5); doc.setTextColor(...(i === 0 ? C.ink : C.mut));
+    doc.text(T(l), W - M, y + 13.5 + (i === 0 ? 0 : 1) + i * 4, { align: 'right' });
+  });
+  y = Math.max(y + 10.5 + co.length * 4, y + 15 + rightLines.length * 4) + 3;
+  doc.setDrawColor(...C.acc); doc.setLineWidth(0.7); doc.line(M, y, W - M, y);
+  return y + 6;
+}
+function pdfFooter(doc, cfg, ref) {
+  const W = 210, H = 297, M = 16, C = PDF_C;
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(...C.line); doc.setLineWidth(0.2); doc.line(M, H - 14, W - M, H - 14);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...C.mut);
+    doc.text(T([cfg.nom, cfg.forme, cfg.siret ? 'SIRET ' + cfg.siret : '', cfg.iban ? 'IBAN ' + cfg.iban : ''].filter(Boolean).join(' · ')), M, H - 9.5);
+    doc.text(T(ref + ' · page ' + i + '/' + pages), W - M, H - 9.5, { align: 'right' });
+  }
+}
+
+function facturePdf(f, ch, cfg, logo) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210, H = 297, M = 16, CW = W - 2 * M, C = PDF_C;
+  const title = f.type === 'acompte' ? "FACTURE D'ACOMPTE" : 'FACTURE';
+  let y = pdfHead(doc, cfg, logo, title, ['N° ' + f.numero, 'Date : ' + fmtLong(f.date), 'Échéance : ' + fmtLong(f.echeance)]);
+  const ensure = h => { if (y + h > H - 22) { doc.addPage(); y = M + 4; } };
+  const bw = (CW - 6) / 2;
+  const cl = ch.client || {};
+  doc.setFontSize(9.5);
+  const box = rows => { const out = []; rows.forEach(r => { if (!r || !r.t) return; doc.setFont('helvetica', r.b ? 'bold' : 'normal'); doc.splitTextToSize(T(r.t), bw - 8).forEach(p => out.push({ t: p, b: r.b })); }); return out; };
+  const L1 = box([{ t: cl.nom || 'Client', b: true }, { t: cl.adresse }, { t: cl.siren ? 'SIREN / SIRET : ' + cl.siren : '' }, { t: cl.email }]);
+  const L2 = box([{ t: ch.titre || 'Chantier', b: true }, { t: ch.adresse }, { t: 'Devis ' + (f.devis || ch.numero) + ' accepté – ' + eur(f.totalDevisHT) + ' HT' },
+    { t: f.type === 'acompte' ? 'Acompte de ' + fmtQ(f.pct) + ' % à la commande' : 'Situation n° ' + f.situation + (f.solde ? ' (solde)' : '') + ' – travaux réalisés au ' + fmtLong(f.date) },
+    { t: 'Catégorie : prestation de services' }]);
+  const bh = 12 + Math.max(L1.length, L2.length) * 4.4 + 2;
+  [[M, 'CLIENT', L1], [M + bw + 6, 'CHANTIER', L2]].forEach(([x, t, ls]) => {
+    doc.setDrawColor(...C.line); doc.setLineWidth(0.3); doc.roundedRect(x, y, bw, bh, 2, 2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...C.mut); doc.text(t, x + 4, y + 6, { charSpace: 0.4 });
+    doc.setFontSize(9.5); doc.setTextColor(...C.ink);
+    ls.forEach((l, i) => { doc.setFont('helvetica', l.b ? 'bold' : 'normal'); doc.text(l.t, x + 4, y + 12 + i * 4.4); });
+  });
+  y += bh + 8;
+
+  const cols = f.type === 'acompte'
+    ? [{ h: 'Désignation', w: 148, a: 'left' }, { h: 'Montant HT', w: 30, a: 'right' }]
+    : [{ h: 'Désignation', w: 74, a: 'left' }, { h: 'Marché HT', w: 26, a: 'right' }, { h: 'Avancement', w: 22, a: 'right' }, { h: 'Déjà facturé', w: 26, a: 'right' }, { h: 'Cette facture', w: 30, a: 'right' }];
+  const head = () => {
+    doc.setFillColor(...C.soft); doc.rect(M, y, CW, 7.5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...C.mut);
+    let x = M; cols.forEach(c => { doc.text(c.h, c.a === 'right' ? x + c.w - 2 : x + 2, y + 5, { align: c.a }); x += c.w; }); y += 7.5;
+  };
+  ensure(20); head();
+  const row = (cells) => {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...C.ink);
+    const parts = doc.splitTextToSize(T(cells[0]), cols[0].w - 4);
+    const rh = Math.max(7, parts.length * 4 + 3);
+    if (y + rh > H - 24) { doc.addPage(); y = M + 4; head(); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); }
+    let x = M; const ty = y + 4.8;
+    doc.text(parts, x + 2, ty); x += cols[0].w;
+    cells.slice(1).forEach((v, i) => { doc.text(T(v), x + cols[i + 1].w - 2, ty, { align: 'right' }); x += cols[i + 1].w; });
+    y += rh; doc.setDrawColor(...C.line); doc.setLineWidth(0.2); doc.line(M, y, W - M, y);
+  };
+  if (f.type === 'acompte') row(['Acompte de ' + fmtQ(f.pct) + ' % sur le devis ' + f.devis + ' (montant total ' + eur(f.totalDevisHT) + ' HT)', eur(f.netHT)]);
+  else {
+    f.lignes.forEach(l => row([l.label, eur(l.montant), fmtQ(l.pctCumul) + ' %', eur(round2(l.montant * l.deja / 100)), eur(l.aFacturer)]));
+    const sumRows = round2(f.lignes.reduce((s, l) => s + l.aFacturer, 0));
+    if (Math.abs(sumRows - f.ht) >= 0.01) row(['Ajustement d’arrondi du solde', '', '', '', eur(round2(f.ht - sumRows))]);
+  }
+  y += 6; ensure(48);
+  const tx1 = W - M - 82, tx2 = W - M - 3;
+  const tot = (label, val, bold) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(9.5); doc.setTextColor(...(bold ? C.ink : C.mut)); doc.text(T(label), tx1, y); doc.setTextColor(...C.ink); doc.text(T(val), tx2, y, { align: 'right' }); y += 5.6; };
+  if (f.type !== 'acompte') {
+    tot('Travaux réalisés à ce jour HT', eur(f.realiseHT));
+    if (f.dejaFactureHT > 0) tot('Déjà facturé (situations précédentes)', '- ' + eur(f.dejaFactureHT));
+    tot('Montant de cette situation HT', eur(f.ht), true);
+    if (f.deductionAcompte > 0) tot('Déduction de l’acompte', '- ' + eur(f.deductionAcompte));
+  }
+  tot('Net HT', eur(f.netHT), true);
+  tot(f.tvaLabel, f.mention && f.tvaRate === 0 ? '-' : eur(f.tva));
+  doc.setFillColor(...C.acc); doc.roundedRect(tx1 - 4, y - 3.5, W - M - (tx1 - 4), 10.5, 1.5, 1.5, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5);
+  doc.text(T(f.ttcLabel), tx1, y + 3.4); doc.text(T(eur(f.ttc)), tx2, y + 3.4, { align: 'right' });
+  y += 14;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3);
+  const tl = doc.splitTextToSize(T(f.tvaInfo), CW - 8);
+  const bhT = 8 + tl.length * 3.7 + (f.mention ? 4.4 : 0) + 2;
+  ensure(bhT + 4);
+  doc.setFillColor(...C.soft); doc.roundedRect(M, y, CW, bhT, 1.5, 1.5, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...C.mut); doc.text('TVA', M + 4, y + 5, { charSpace: 0.4 });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3); doc.setTextColor(...C.ink); doc.text(tl, M + 4, y + 9.5);
+  if (f.mention) { doc.setFont('helvetica', 'bold'); doc.text(T(f.mention), M + 4, y + 9.5 + tl.length * 3.7 + 0.8); }
+  y += bhT + 7;
+  const pay = 'Paiement à réception, au plus tard le ' + fmtLong(f.echeance) + (cfg.iban ? ', par virement sur le compte ' + cfg.iban + ' avec la référence ' + f.numero : '') + '.\n' +
+    'Pas d’escompte en cas de paiement anticipé.\n' +
+    'En cas de retard de paiement : pénalités égales à trois fois le taux d’intérêt légal, et, pour les clients professionnels, indemnité forfaitaire de 40 € pour frais de recouvrement.' +
+    (cfg.assurance ? '\nAssurance professionnelle : ' + cfg.assurance + '.' : '');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...C.ink); ensure(14); doc.text('Conditions de paiement', M, y); y += 5.5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...C.mut);
+  const pl = doc.splitTextToSize(T(pay), CW); ensure(pl.length * 3.8 + 4); doc.text(pl, M, y);
+  pdfFooter(doc, cfg, f.numero);
+  return doc;
+}
+
+function planningEquipePdf(ch, comp, sched, employes, cfg, logo) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210, H = 297, M = 16, CW = W - 2 * M, C = PDF_C;
+  let y = pdfHead(doc, cfg, logo, 'PLANNING', [ch.numero || '', ch.titre || '', ch.adresse || '']);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...C.mut);
+  doc.text(T(fmtH(comp.hours) + ' de travail · ' + sched.length + ' jours de présence · ' + comp.crewLabel), M, y); y += 7;
+  const pc = [{ h: 'Jour', w: 34, a: 'left' }, { h: 'Travaux', w: 56, a: 'left' }, { h: 'Équipe', w: 70, a: 'left' }, { h: 'H/pers.', w: 18, a: 'right' }];
+  const head = () => { doc.setFillColor(...C.soft); doc.rect(M, y, CW, 7.5, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...C.mut); let x = M; pc.forEach(c => { doc.text(c.h, c.a === 'right' ? x + c.w - 2 : x + 2, y + 5, { align: c.a }); x += c.w; }); y += 7.5; };
+  head();
+  sched.forEach(s => s.items.forEach((it, idx) => {
+    const ids = assignedTo(ch, it.k).filter(id => employes[id]);
+    const names = ids.map(id => employes[id].nom || 'Sans nom');
+    const reste = Math.max(0, it.people - ids.length);
+    const team = names.join(', ') + (reste ? (names.length ? ' + ' : '') + reste + ' à nommer' : '');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    const wk = doc.splitTextToSize(T(it.nom), pc[1].w - 3).slice(0, 3);
+    const tm = doc.splitTextToSize(T(team), pc[2].w - 3).slice(0, 4);
+    const rh = Math.max(7, Math.max(wk.length, tm.length) * 3.8 + 3.2);
+    if (y + rh > H - 22) { doc.addPage(); y = M + 4; head(); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); }
+    let x = M; const ty = y + 4.8; doc.setTextColor(...C.ink);
+    doc.text(idx === 0 ? T(parseIso(s.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })) : '', x + 2, ty); x += pc[0].w;
+    doc.text(wk, x + 2, ty); x += pc[1].w;
+    doc.text(tm, x + 2, ty); x += pc[2].w;
+    doc.text(T(fmtH(it.h)), x + pc[3].w - 2, ty, { align: 'right' });
+    y += rh; doc.setDrawColor(...C.line); doc.setLineWidth(0.2); doc.line(M, y, W - M, y);
+  }));
+  pdfFooter(doc, cfg, 'Planning ' + (ch.numero || ''));
   return doc;
 }
 
@@ -1543,6 +1797,7 @@ function Editor({ ch, data, cfg, bookings, caps, put, del, onBack, onDuplicate, 
             <${Field} label="Téléphone"><input id="c-tel" className="inp" type="tel" value=${c.tel || ''} placeholder="06 …" onChange=${e => setClient('tel', e.target.value)} /><//>
             <${Field} label="E-mail"><input id="c-email" className="inp" type="email" value=${c.email || ''} onChange=${e => setClient('email', e.target.value)} /><//>
             <${Field} label="Adresse de facturation"><input id="c-adr" className="inp" value=${c.adresse || ''} placeholder="Rue, n°, code postal, ville" onChange=${e => setClient('adresse', e.target.value)} /><//>
+            ${ch.typeClient && ch.typeClient !== 'particulier' ? html`<${Field} label="SIREN ou SIRET du client" hint="Demandé sur les factures aux entreprises."><input id="c-siren" className="inp" inputMode="numeric" value=${c.siren || ''} placeholder="9 ou 14 chiffres" onChange=${e => setClient('siren', e.target.value)} /><//>` : null}
           </div>
           <${Field} label="Qui est ton client ?" group hint="Sert à choisir la bonne TVA automatiquement.">
             <div className="tc-grid" id="c-type" tabIndex="-1">
@@ -1596,6 +1851,7 @@ function Editor({ ch, data, cfg, bookings, caps, put, del, onBack, onDuplicate, 
         <${PrestaSec} ch=${ch} comp=${comp} cfg=${cfg} update=${update} />
         <${EquipeSec} ch=${ch} comp=${comp} sched=${sched} data=${data} bookings=${bookings} update=${update} goTab=${goTab} />
         <${MaterielSec} ch=${ch} comp=${comp} data=${data} update=${update} goTab=${goTab} />
+        <${ExecSec} ch=${ch} comp=${comp} sched=${sched} data=${data} cfg=${cfg} bookings=${bookings} update=${update} put=${put} notify=${notify} />
       </div>
       </div>
       <aside className="ed-side">
@@ -1928,7 +2184,7 @@ function Assistant({ ch, comp, sched, cfg, caps, goTab }) {
   const next = {
     brouillon: 'Quand tout est coché, télécharge le PDF, envoie-le au client, puis passe le statut en haut à « Envoyé ».',
     envoye: 'Quand le client renvoie le devis signé avec « Bon pour accord », passe-le à « Accepté » : il entre dans le planning.',
-    accepte: 'Devis signé : le chantier est dans le planning. Garde bien le PDF signé.',
+    accepte: 'Devis signé : dans « Chantier en cours et facturation », nomme les personnes de chaque phase, coche ce qui est fait et crée les factures (acompte puis travaux réalisés).',
     refuse: 'Devis refusé : tu peux le dupliquer pour faire une nouvelle proposition.'
   }[ch.statut || 'brouillon'];
   return html`<section className="assist">
@@ -2278,11 +2534,115 @@ function EquipeSec({ ch, comp, sched, data, bookings, update, goTab }) {
     ${sched.length ? html`<div className="days">${sched.slice(0, 60).map(s => html`<span key=${s.date} className="day">${fmtDay(s.date)} · ${s.people} pers. · ${fmtH(s.h)}</span>`)}${sched.length > 60 ? html`<span className="day">… et ${sched.length - 60} autres jours</span>` : null}</div>`
       : comp.hours > 0 ? html`<p className="small muted">Choisis une date de début pour générer le planning.</p>` : null}
     ${conflicts.length ? html`<div className="warn-box">${conflicts.map((t, i) => html`<div key=${i}>${t}</div>`)}</div>` : null}
-    <${Field} label="Qui intervient ? (facultatif, pour le planning des personnes)" group hint=${comp.modeEquipe === 'auto' ? 'Quand l’app calcule l’équipe, le planning affiche le nombre de personnes. Pour nommer les personnes, choisis « Je la choisis » dans l’équipe nécessaire.' : 'Le prix suit l’équipe nécessaire ; ces noms servent au planning.'}>
-      ${emps.length ? html`<div className="chips">
-        ${emps.map(e => html`<button type="button" key=${e.id} className="chip" aria-pressed=${sel.has(e.id)} onClick=${() => toggle(e.id)}>${e.nom || 'Sans nom'}<span className="cnt">${e.poste || ''}</span></button>`)}
-      </div>` : html`<p className="small muted">Aucune personne enregistrée. <button className="link" onClick=${() => goTab('equipe')}>Ajoute ton équipe</button> pour voir qui travaille où.</p>`}
-    <//>
+    <p className="small muted">Une fois le devis accepté, nomme les personnes de chaque phase dans <button type="button" className="link" onClick=${() => { const el = document.getElementById('exec'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>Chantier en cours et facturation</button>.</p>
+  </section>`;
+}
+
+/* ----- Après acceptation : équipe nommée, avancement, factures ----- */
+function ExecSec({ ch, comp, sched, data, cfg, bookings, update, put, notify }) {
+  const accepted = ch.statut === 'accepte';
+  const [open, setOpen] = useState(accepted);
+  const [newName, setNewName] = useState({});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (accepted) setOpen(true); }, [accepted]);
+  const emps = Object.values(data.employes).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const units = comp.org;
+  const daysOf = k => sched.filter(s => s.items.some(i => i.k === k)).map(s => s.date);
+  const assigned = k => assignedTo(ch, k).filter(id => data.employes[id]);
+  const setUnit = (k, ids) => update(cur => { const t = Object.assign({}, cur.travaux || {}); t[k] = Object.assign({}, t[k] || {}, { equipe: ids }); return { travaux: t }; });
+  const toggle = (k, id) => { const s = new Set(assigned(k)); if (s.has(id)) s.delete(id); else s.add(id); setUnit(k, [...s]); };
+  const conflictOf = (id, k) => {
+    for (const d of daysOf(k)) { const other = ((bookings.byEmp[id] || {})[d] || []).find(b => b.ch.id !== ch.id); if (other) return 'Déjà prévu le ' + fmtDay(d) + ' sur ' + (other.ch.titre || other.ch.numero); }
+    return '';
+  };
+  const addPerson = k => {
+    const nom = String(newName[k] || '').trim(); if (!nom || !svc.backend) return;
+    const id = svc.backend.newId();
+    put('employes', id, { nom, poste: 'Agent de nettoyage', taux: String(num(cfg.tauxPostes.agent) || num(cfg.tauxDefaut)), tel: '', createdAt: Date.now() }, 0);
+    setUnit(k, [...assigned(k), id]); setNewName(o => Object.assign({}, o, { [k]: '' }));
+  };
+  const b = billing(ch, comp);
+  const setPct = (key, v) => update(cur => ({ avancement: Object.assign({}, cur.avancement || {}, { [key]: v }) }));
+  const factures = ch.factures || [];
+  async function loadLogoSafe() { return cfg.logo ? await loadLogo(cfg.logo).catch(() => null) : null; }
+  async function pdfFacture(f) {
+    if (!window.jspdf) { notify("Le module PDF n'a pas pu se charger.", 'err'); return; }
+    const doc = facturePdf(f, ch, cfg, await loadLogoSafe());
+    await saveFile(safeName((f.type === 'acompte' ? 'Facture acompte ' : 'Facture ') + f.numero + ' ' + ((ch.client && ch.client.nom) || '')) + '.pdf', doc.output('blob'), notify);
+  }
+  async function creer(type) {
+    if (busy) return; setBusy(true);
+    try {
+      const f = makeFacture(type, ch, comp, cfg, nextFactureNumero(data.chantiers));
+      update(cur => ({ factures: [...(cur.factures || []), f] }));
+      notify('Facture ' + f.numero + ' créée : ' + eur(f.ttc) + '.');
+      await pdfFacture(f);
+    } finally { setBusy(false); }
+  }
+  async function pdfPlanning() {
+    if (!window.jspdf) { notify("Le module PDF n'a pas pu se charger.", 'err'); return; }
+    const doc = planningEquipePdf(ch, comp, sched, data.employes, cfg, await loadLogoSafe());
+    await saveFile(safeName('Planning équipe ' + ch.numero) + '.pdf', doc.output('blob'), notify);
+  }
+  const setPaye = (id, v) => update(cur => ({ factures: (cur.factures || []).map(f => f.id === id ? Object.assign({}, f, { paye: v }) : f) }));
+  const removeLast = () => update(cur => ({ factures: (cur.factures || []).slice(0, -1) }));
+  const lastF = factures[factures.length - 1];
+  const totalFactureTTC = factures.reduce((s, f) => s + f.ttc, 0);
+  const totalPaye = factures.filter(f => f.paye).reduce((s, f) => s + f.ttc, 0);
+  const named = units.reduce((s, o) => s + Math.min(o.people, assigned(o.k).length), 0);
+  const needed = units.reduce((s, o) => s + o.people, 0);
+
+  return html`<section className=${'sec exec' + (accepted ? ' on' : '')} id="exec">
+    <button type="button" className="exec-h" aria-expanded=${open} onClick=${() => setOpen(o => !o)}>
+      <span className="sec-h">Chantier en cours et facturation</span>
+      <span className=${'pill ' + (accepted ? 's-accepte' : 's-brouillon')}>${accepted ? (b.realiseHT > 0 ? fmtQ(Math.round(b.realiseHT / Math.max(1, comp.ht) * 100)) + ' % réalisé' : 'devis accepté') : 'après acceptation'}</span>
+      <span className="chev" aria-hidden="true">${open ? '−' : '+'}</span>
+    </button>
+    ${open ? html`<${Frag}>
+      ${!accepted ? html`<p className="small warn-box">Cette partie sert une fois le devis signé. Passe le statut en haut à « Accepté » quand le client a renvoyé le devis avec « Bon pour accord ».</p>` : null}
+
+      <div className="subh">1. Qui travaille sur chaque phase ${needed ? html`<span className="aside">${named}/${needed} personnes nommées</span>` : null}</div>
+      ${!units.length ? html`<p className="small muted">Le devis n’a pas encore d’heures de travail.</p>` : html`<div className="units">${units.map(o => {
+        const ids = assigned(o.k); const days = daysOf(o.k);
+        return html`<div className="unit" key=${o.k}>
+          <div className="unit-h"><strong>${o.nom}</strong><span className="muted small">${days.length ? fmtRange(days[0], days[days.length - 1]) : 'dates à fixer'} · ${o.people} ${o.people > 1 ? 'personnes' : 'personne'} (${o.label}) · ${fmtH(o.perPerson)} chacun</span></div>
+          <div className="chips">${emps.map(e => { const on = ids.includes(e.id); const cf = on ? '' : conflictOf(e.id, o.k);
+            return html`<button type="button" key=${e.id} className=${'chip' + (cf ? ' busy' : '')} aria-pressed=${on} title=${cf || e.poste || ''} onClick=${() => toggle(o.k, e.id)}>${e.nom || 'Sans nom'}${cf ? html`<span className="cnt">occupé</span>` : null}</button>`; })}</div>
+          <div className="addrow">
+            <input id=${'np-' + o.k} className="inp np" placeholder="Nouvelle personne (prénom nom)" value=${newName[o.k] || ''} onChange=${e => { const v = e.target.value; setNewName(x => Object.assign({}, x, { [o.k]: v })); }} onKeyDown=${e => { if (e.key === 'Enter') addPerson(o.k); }} />
+            <button type="button" className="btn sm" onClick=${() => addPerson(o.k)} disabled=${!String(newName[o.k] || '').trim()}>Ajouter</button>
+            <span className=${'small ' + (ids.length >= o.people ? 'ok-t' : 'muted')}>${Math.min(ids.length, o.people)}/${o.people}${ids.length > o.people ? ' (+' + (ids.length - o.people) + ' en plus)' : ''}</span>
+          </div>
+        </div>`; })}</div>`}
+      ${units.length ? html`<div className="addrow"><button type="button" className="btn" onClick=${pdfPlanning} disabled=${!sched.length}>Télécharger le planning de l’équipe (PDF)</button><span className="tiny muted">Jour par jour, avec les noms. Visible aussi dans l’onglet Planning.</span></div>` : null}
+
+      <div className="subh">2. Avancement des travaux</div>
+      <p className="tiny muted">Indique ce qui est fait. La prochaine facture reprend seulement ce qui n’a pas encore été facturé.</p>
+      <div className="av-list">${b.rows.map(r => html`<div className="av" key=${r.key}>
+        <div className="av-l">${r.label}<span className="muted small">${eur(r.montant)} HT${r.deja ? ' · déjà facturé ' + fmtQ(r.deja) + ' %' : ''}</span></div>
+        <div className="seg av-seg">${[0, 25, 50, 75, 100].map(p => html`<button type="button" key=${p} aria-pressed=${r.pct === p} disabled=${p < r.deja} onClick=${() => setPct(r.key, p)}>${p === 100 ? 'Fait' : p + ' %'}</button>`)}</div>
+      </div>`)}</div>
+      <div className="team-res">
+        <strong>Réalisé : ${eur(b.realiseHT)} HT sur ${eur(comp.ht)}</strong>
+        <span>À facturer maintenant : ${eur(b.situationHT)} HT${b.deduction > 0 ? ' − acompte ' + eur(b.deduction) + ' = ' + eur(b.netHT) + ' HT' : ''}${b.situationHT > 0 ? ' · ' + (comp.rule.mention && comp.rule.rate === 0 ? comp.rule.label : 'TVA ' + fmtQ(comp.rule.rate) + ' % : ' + eur(round2(b.netHT * comp.rule.rate / 100))) : ''}</span>
+      </div>
+
+      <div className="subh">3. Factures</div>
+      <div className="addrow">
+        ${!b.hasAcompte && num(cfg.acomptePct) > 0 ? html`<button type="button" className="btn" disabled=${!accepted || busy} onClick=${() => creer('acompte')}>Facture d’acompte (${fmtQ(num(cfg.acomptePct))} % : ${eur(round2(comp.ht * num(cfg.acomptePct) / 100))} HT)</button>` : null}
+        <button type="button" className="btn primary" disabled=${!accepted || busy || !(b.situationHT > 0)} onClick=${() => creer('situation')}>${b.allDone ? 'Facture de solde' : 'Facturer les travaux réalisés'}${b.situationHT > 0 ? ' (' + eur(b.netHT) + ' HT)' : ''}</button>
+      </div>
+      ${factures.length ? html`<div className="fact-list">${factures.map(f => html`<div className="fact" key=${f.id}>
+        <div className="fact-l"><span className="num">${f.numero}</span><strong>${f.type === 'acompte' ? 'Acompte ' + fmtQ(f.pct) + ' %' : 'Situation n° ' + f.situation + (f.solde ? ' (solde)' : '')}</strong><span className="muted small">${fmtLong(f.date)} · échéance ${fmtDay(f.echeance)}</span></div>
+        <div className="fact-r"><strong className="tab-n">${eur(f.ttc)}</strong>
+          <label className="switch small" htmlFor=${'pay-' + f.id}><input id=${'pay-' + f.id} type="checkbox" checked=${!!f.paye} onChange=${e => setPaye(f.id, e.target.checked)} />Payée</label>
+          <button type="button" className="btn sm" onClick=${() => pdfFacture(f)}>PDF</button>
+          ${f === lastF && !f.paye ? html`<${ConfirmBtn} className="btn ghost sm" label="Supprimer" confirmLabel="Supprimer (pas encore envoyée ?)" onConfirm=${removeLast} />` : null}
+        </div>
+      </div>`)}</div>
+      <p className="small">Facturé : <strong>${eur(totalFactureTTC)}</strong> · payé : <strong>${eur(totalPaye)}</strong> · reste à encaisser : <strong>${eur(round2(totalFactureTTC - totalPaye))}</strong></p>
+      <p className="tiny muted">Les factures sont numérotées à la suite (F-${new Date().getFullYear()}-001, 002…), comme l’exige la loi. Une facture envoyée ne se supprime pas : en cas d’erreur, il faut faire un avoir.</p>` : null}
+    <//>` : null}
   </section>`;
 }
 
@@ -2363,7 +2723,7 @@ function DevisPanel({ ch, comp, sched, cfg, onPdf, busy, goTab, canDownload }) {
       <div className="t strong"><span>Total HT</span><span>${eur(comp.ht)}</span></div>
       <div className="t"><span>${comp.rule.label}</span><span>${comp.rule.mention && comp.tvaRate === 0 ? '–' : eur(comp.tva)}</span></div>
       <div className="ttc"><span>${comp.ttcLabel}</span><span className="v">${eur(comp.ttc)}</span></div>
-      ${comp.rule.mention ? html`<p className="tiny" style=${{ marginTop: '4px' }}>${comp.rule.mention}</p>` : null}
+      <p className="tiny muted" style=${{ marginTop: '4px' }}>${tvaText(comp.rule, comp.ht, cfg)}</p>
     </div>
     ${comp.hours > 0 ? html`<div className="p-team">
       <span className="lbl">Équipe et temps de travail</span>
@@ -2422,7 +2782,7 @@ function Planning({ data, cfg, bookings, onOpen, notify }) {
           <div className=${'pl-who' + (r.none ? ' none' : '')}><strong>${r.label}</strong><span>${r.sub}</span></div>
           ${days.map(d => { const list = r.cells[d] || []; const cf = b_conflict(r, d, hpd);
             return html`<div key=${d} className=${'pl-cell' + (cf ? ' conflict' : '') + (d === today ? ' today' : '')}>
-              ${list.map(b => html`<button key=${b.ch.id} className=${'blk c' + colorIdx(b.ch.id) + (b.ch.statut !== 'accepte' ? ' prov' : '')} onClick=${() => onOpen(b.ch.id)}>
+              ${list.map((b, bi) => html`<button key=${b.ch.id + '-' + bi} className=${'blk c' + colorIdx(b.ch.id) + (b.ch.statut !== 'accepte' ? ' prov' : '')} onClick=${() => onOpen(b.ch.id)}>
                 <span className="blk-n">${b.ch.numero}</span>
                 <span className="blk-t">${b.ch.titre || (b.ch.client && b.ch.client.nom) || 'Chantier'}</span>
                 <span className="blk-h">${b.people ? b.people + ' pers. · ' : ''}${fmtH(b.h)}${b.ch.statut !== 'accepte' ? ' · provisoire' : ''}</span>
@@ -2614,6 +2974,8 @@ function Reglages({ cfg, put, caps, notify, data }) {
         ${inp('tauxTVA', 'Taux normal de TVA (%)', { dec: true, hint: '20 % en France.' })}
         ${inp('validite', 'Validité (jours)', { dec: true })}
         ${inp('tauxDefaut', 'Taux horaire par défaut (€ HT)', { dec: true, hint: 'Utilisé tant que l’équipe n’est pas choisie.' })}
+        ${inp('acomptePct', 'Acompte à la commande (%)', { dec: true, hint: '0 pour ne pas demander d’acompte.' })}
+        ${inp('delaiPaiement', 'Délai de paiement des factures (jours)', { dec: true, hint: '30 jours en général entre entreprises.' })}
       </div>
       <div className="subh">Taux horaires facturés par poste (€ HT)</div>
       <div className="coefs">${ROLES.map(r => html`<label key=${r.id} className="coef" htmlFor=${'tp-' + r.id}><span>${r.label}</span>
